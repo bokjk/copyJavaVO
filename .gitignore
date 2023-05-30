@@ -1,0 +1,7 @@
+source/
+convert/
+target/
+dist/
+build/
+main.spec
+__pycache__

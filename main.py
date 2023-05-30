@@ -1,17 +1,31 @@
 import os
 import shutil
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QPlainTextEdit
+from PySide6.QtCore import QThread, Signal
 
-def copy_vo_folder(src, dst):
-    for dirpath, dirnames, filenames in os.walk(src):
-        if 'vo' in dirnames:
-            vo_src = os.path.join(dirpath, 'vo')
-            vo_dst = os.path.join(dst, os.path.relpath(dirpath, src), 'vo')
-            os.makedirs(vo_dst, exist_ok=True)
-            for filename in os.listdir(vo_src):
-                filepath_src = os.path.join(vo_src, filename)
-                filepath_dst = os.path.join(vo_dst, filename)
-                shutil.copy(filepath_src, filepath_dst)
+class CopyThread(QThread):
+    message = Signal(str)
+
+    def __init__(self, src, dst):
+        super().__init__()
+        self.src = src
+        self.dst = dst
+
+    def run(self):
+        self.copy_vo_folder(self.src, self.dst)
+
+    def copy_vo_folder(self, src, dst):
+        for dirpath, dirnames, filenames in os.walk(src):
+            if 'vo' in dirnames:
+                vo_src = os.path.join(dirpath, 'vo')
+                vo_dst = os.path.join(dst, os.path.relpath(dirpath, src), 'vo')
+                os.makedirs(vo_dst, exist_ok=True)
+                for filename in os.listdir(vo_src):
+                    filepath_src = os.path.join(vo_src, filename)
+                    filepath_dst = os.path.join(vo_dst, filename)
+                    shutil.copy(filepath_src, filepath_dst)
+                    self.message.emit(f'Copied file: {filepath_src} to {filepath_dst}')
+        self.message.emit('Copying completed')
 
 class FolderCopyWidget(QWidget):
     def __init__(self):
@@ -25,11 +39,14 @@ class FolderCopyWidget(QWidget):
         self.button_src = QPushButton('Select Source Folder')
         self.button_dst = QPushButton('Select Target Folder')
         self.button_copy = QPushButton('Start Copy')
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
         self.layout.addWidget(self.label_src)
         self.layout.addWidget(self.button_src)
         self.layout.addWidget(self.label_dst)
         self.layout.addWidget(self.button_dst)
         self.layout.addWidget(self.button_copy)
+        self.layout.addWidget(self.log_view)
         self.setLayout(self.layout)
         
         self.button_src.clicked.connect(self.select_source_folder)
@@ -50,7 +67,9 @@ class FolderCopyWidget(QWidget):
 
     def start_copy(self):
         if hasattr(self, 'src_folder') and hasattr(self, 'dst_folder'):
-            copy_vo_folder(self.src_folder, self.dst_folder)
+            self.copy_thread = CopyThread(self.src_folder, self.dst_folder)
+            self.copy_thread.message.connect(self.log_view.appendPlainText)
+            self.copy_thread.start()
 
 app = QApplication([])
 window = FolderCopyWidget()

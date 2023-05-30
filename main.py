@@ -12,19 +12,20 @@ class CopyThread(QThread):
         self.dst = dst
 
     def run(self):
-        self.copy_vo_folder(self.src, self.dst)
+        self.copy_folders(self.src, self.dst, ['vo', 'entity'])
 
-    def copy_vo_folder(self, src, dst):
+    def copy_folders(self, src, dst, folder_names):
         for dirpath, dirnames, filenames in os.walk(src):
-            if 'vo' in dirnames:
-                vo_src = os.path.join(dirpath, 'vo')
-                vo_dst = os.path.join(dst, os.path.relpath(dirpath, src), 'vo')
-                os.makedirs(vo_dst, exist_ok=True)
-                for filename in os.listdir(vo_src):
-                    filepath_src = os.path.join(vo_src, filename)
-                    filepath_dst = os.path.join(vo_dst, filename)
-                    shutil.copy(filepath_src, filepath_dst)
-                    self.message.emit(f'Copied file: {filepath_src} to {filepath_dst}')
+            for folder_name in folder_names:
+                if folder_name in dirnames:
+                    folder_src = os.path.join(dirpath, folder_name)
+                    folder_dst = os.path.join(dst, os.path.relpath(dirpath, src), folder_name)
+                    os.makedirs(folder_dst, exist_ok=True)
+                    for filename in os.listdir(folder_src):
+                        filepath_src = os.path.join(folder_src, filename)
+                        filepath_dst = os.path.join(folder_dst, filename)
+                        shutil.copy(filepath_src, filepath_dst)
+                        self.message.emit(f'Copied file: {filepath_src} to {filepath_dst}')
         self.message.emit('Copying completed')
 
 class FolderCopyWidget(QWidget):
